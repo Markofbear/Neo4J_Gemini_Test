@@ -26,7 +26,7 @@ def get_projects(tx):
     """
     return list(tx.run(query))
 
-# Run the query
+# Run the query test
 with driver.session(database=DATABASE) as session:
     projects = session.execute_read(get_projects)
 
