@@ -23,7 +23,6 @@ DATABASE = "testproject"
 
 driver = GraphDatabase.driver(URI, auth=(USERNAME, PASSWORD))
 
-# ✅ Function to Fetch Projects from Neo4j
 def get_projects(tx):
     query = """
     MATCH (p:Project)-[r:RELATED_TO]->(other:Project)
@@ -31,17 +30,14 @@ def get_projects(tx):
     """
     return list(tx.run(query))
 
-# ✅ Fetch Project Data from Neo4j
 with driver.session(database=DATABASE) as session:
     projects = session.execute_read(get_projects)
 
-# ✅ Format Data for Gemini AI
 formatted_data = "\n".join([
     f"Project: {p['name']}\nDescription: {p['description']}\nRelated Project: {p['related_project']}\n"
     for p in projects
 ])
 
-# ✅ Send to Gemini AI for Summarization
 def summarize_projects(data):
     prompt = f"Summarize the following project information:\n\n{data}"
     response = model.generate_content(prompt)
@@ -49,6 +45,5 @@ def summarize_projects(data):
 
 summary = summarize_projects(formatted_data)
 
-# ✅ Print AI-Generated Summary
 print("\n🔹 Gemini AI Summary:")
 print(summary)

@@ -1,12 +1,10 @@
 from neo4j import GraphDatabase
 
-# ✅ Updated database details
 URI = "bolt://localhost:7687"
 USERNAME = "neo4j"
 PASSWORD = "12345678"
-DATABASE = "testproject"  # ✅ Explicitly set to "testproject"
+DATABASE = "testproject"  
 
-# Connect to Neo4j
 driver = GraphDatabase.driver(URI, auth=(USERNAME, PASSWORD))
 
 def test_connection():
