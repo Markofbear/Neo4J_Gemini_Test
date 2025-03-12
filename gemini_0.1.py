@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
 import time
+import google.api_core.exceptions
 
 # Load API key
 load_dotenv()
@@ -26,7 +27,7 @@ with driver.session(database=DATABASE) as session:
     session.execute_write(clear_existing_summaries)
     print("✅ Removed all existing summaries in Neo4j.")
 
-# Fetch projects without summaries and add unique node id
+# Fetch projects without summaries
 def get_projects(tx):
     query = """
     MATCH (p:Project)
@@ -37,7 +38,20 @@ def get_projects(tx):
     """
     return list(tx.run(query))
 
-# Generate strict one-sentence summaries
+# Generate strict one-sentence summaries with retry mechanism
+def generate_with_retry(ai_prompt, retries=5):
+    attempt = 0
+    while attempt < retries:
+        try:
+            response = model.generate_content(ai_prompt, generation_config={"max_output_tokens": 40})
+            return response
+        except google.api_core.exceptions.ResourceExhausted as e:
+            print(f"Resource exhausted: {e}, retrying...")
+            attempt += 1
+            time.sleep(2 ** attempt)  # Exponential backoff
+    print("Max retries reached, could not get a response.")
+    return None
+
 def summarize_projects(projects):
     batch_size = 5
     summaries = {}
@@ -56,13 +70,15 @@ def summarize_projects(projects):
         {prompt}
         """
 
-        response = model.generate_content(ai_prompt, generation_config={"max_output_tokens": 40})  
-        summary_list = response.text.strip().split("\n")
+        # Retry on API failure
+        response = generate_with_retry(ai_prompt)
+        
+        if response:
+            summary_list = response.text.strip().split("\n")
+            for idx, project in enumerate(batch):
+                summaries[project["identity"]] = summary_list[idx] if idx < len(summary_list) else "No summary generated."
 
-        for idx, project in enumerate(batch):
-            summaries[project["identity"]] = summary_list[idx] if idx < len(summary_list) else "No summary generated."
-
-        time.sleep(2)
+        time.sleep(2)  # Sleep to avoid rate limits
 
     return summaries
 
