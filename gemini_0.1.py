@@ -26,13 +26,14 @@ with driver.session(database=DATABASE) as session:
     session.execute_write(clear_existing_summaries)
     print("✅ Removed all existing summaries in Neo4j.")
 
-# Fetch projects without summaries
+# Fetch projects without summaries and add unique node id
 def get_projects(tx):
     query = """
     MATCH (p:Project)
     WHERE p.summary IS NULL
     RETURN p.name AS name, p.description AS description, 
-           p.objectives AS objectives, p.solution AS solution, p.outcome AS outcome
+           p.objectives AS objectives, p.solution AS solution, 
+           p.outcome AS outcome, id(p) AS identity
     """
     return list(tx.run(query))
 
@@ -59,19 +60,19 @@ def summarize_projects(projects):
         summary_list = response.text.strip().split("\n")
 
         for idx, project in enumerate(batch):
-            summaries[project["name"]] = summary_list[idx] if idx < len(summary_list) else "No summary generated."
+            summaries[project["identity"]] = summary_list[idx] if idx < len(summary_list) else "No summary generated."
 
         time.sleep(2)
 
     return summaries
 
 # Store summaries in Neo4j
-def store_summary(tx, name, summary):
+def store_summary(tx, identity, summary):
     query = """
-    MATCH (p:Project {name: $name})
+    MATCH (p:Project) WHERE id(p) = $identity
     SET p.summary = $summary
     """
-    tx.run(query, name=name, summary=summary)
+    tx.run(query, identity=identity, summary=summary)
 
 # Run summarization
 with driver.session(database=DATABASE) as session:
@@ -82,9 +83,9 @@ with driver.session(database=DATABASE) as session:
 
         summaries = summarize_projects(projects)
 
-        for name, summary in summaries.items():
-            print(f"🔹 RAW AI Response for {name}: {summary}")  # ✅ Debugging output
-            session.execute_write(store_summary, name, summary)
+        for identity, summary in summaries.items():
+            print(f"🔹 RAW AI Response for ID {identity}: {summary}")  # ✅ Debugging output
+            session.execute_write(store_summary, identity, summary)
 
 print("\n✅ All summaries stored in Neo4j. Run this in Neo4j Browser to verify:")
 print("MATCH (p:Project) RETURN p.name, p.summary;")
