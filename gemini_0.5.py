@@ -42,7 +42,8 @@ def summarize_projects(projects):
     summaries = {}
 
     for project in projects:
-        print(f"Processing project {project['name']}...")  # Debugging output
+        print(f"Processing project {project['name']}...")  # Print for each project
+        
         prompt = f"""
         Project: {project['name']}
         Description: {project['description']}
@@ -83,7 +84,6 @@ with driver.session(database=DATABASE) as session:
         summaries = summarize_projects(projects)
 
         for element_id, summary in summaries.items():
-            print(f"🔹 AI Summary for ElementId {element_id}: {summary}")  # ✅ Debugging output
             session.execute_write(store_summary, element_id, summary)
 
 # Final message with Neo4j query
